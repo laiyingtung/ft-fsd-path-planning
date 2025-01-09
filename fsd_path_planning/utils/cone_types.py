@@ -13,6 +13,8 @@ class ConeTypes(IntEnum):
     """
 
     UNKNOWN = ORANGE = 0
+    #RIGHT = BLUE = 1
+    #LEFT = YELLOW = 2
     RIGHT = YELLOW = 1
     LEFT = BLUE = 2
     #START_FINISH_AREA = ORANGE_SMALL = 3

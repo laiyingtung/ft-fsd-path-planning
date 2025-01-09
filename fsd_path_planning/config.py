@@ -32,13 +32,22 @@ def get_cone_sorting_config(
     """Create cone sorting kwargs."""
 
     return dict(
-        max_n_neighbors=5,
-        max_dist=6.5,
-        max_dist_to_first=6.0,
-        max_length=12,
-        threshold_directional_angle=np.deg2rad(40),
+        max_n_neighbors=10,
+        max_dist=20,
+        max_dist_to_first=30.0,
+        max_length=20,
+        threshold_directional_angle=np.deg2rad(60),
         threshold_absolute_angle=np.deg2rad(65),
         use_unknown_cones=True,
+        
+        # max_n_neighbors=5,
+        # max_dist=6.5,
+        # max_dist_to_first=6.0,
+        # max_length=12,
+        # threshold_directional_angle=np.deg2rad(40),
+        # threshold_absolute_angle=np.deg2rad(65),
+        # use_unknown_cones=True,
+        
     )
 
 
@@ -46,7 +55,9 @@ def get_cone_fitting_config(
     mission: MissionTypes,  # pylint: disable=unused-argument
 ) -> KwargsType:
     """Create cone fitting kwargs."""
-    return dict(smoothing=0.2, predict_every=0.1, max_deg=3)
+    return dict(smoothing=0.5, predict_every=0.1, max_deg=3)
+
+    #return dict(smoothing=0.2, predict_every=0.1, max_deg=3)
 
 
 def get_path_calculation_config(
@@ -56,7 +67,11 @@ def get_path_calculation_config(
     return dict(
         maximal_distance_for_valid_path=5,
         mpc_path_length=20,  # 20 meters
-        mpc_prediction_horizon=40,  # 40 path points
+        mpc_prediction_horizon=80,  # 40 path points
+
+        #maximal_distance_for_valid_path=5,
+        #mpc_path_length=20,  # 20 meters
+        #mpc_prediction_horizon=40,  # 40 path points
     )
 
 
@@ -127,6 +142,11 @@ def get_default_matching_kwargs(mission: MissionTypes) -> KwargsType:
         max_search_range=5,
         max_search_angle=np.deg2rad(50),
         matches_should_be_monotonic=True,
+
+        #min_track_width=3,
+        #max_search_range=5,
+        #max_search_angle=np.deg2rad(50),
+        #matches_should_be_monotonic=True,
     )
 
 

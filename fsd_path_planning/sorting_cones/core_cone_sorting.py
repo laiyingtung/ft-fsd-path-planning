@@ -58,7 +58,7 @@ class ConeSorting:
         max_length: int,
         threshold_directional_angle: float,
         threshold_absolute_angle: float,
-        use_unknown_cones: bool,
+        use_unknown_cones: True,
         experimental_performance_improvements: bool = False,
     ):
         """

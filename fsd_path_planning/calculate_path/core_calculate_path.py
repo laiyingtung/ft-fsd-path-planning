@@ -31,6 +31,8 @@ from fsd_path_planning.utils.math_utils import (
 )
 from fsd_path_planning.utils.spline_fit import SplineEvaluator, SplineFitterFactory
 
+from scipy.interpolate import CubicSpline
+
 SplineEvalByType = List[SplineEvaluator]
 
 
@@ -435,10 +437,10 @@ class CalculatePath:
         current position of the car. The path update is then shifted by this distance.
         """
         distance_to_first_point = np.linalg.norm(
-            self.input.position_global - path_update[0]
+            self.input.position_global - path_update[1]
         )
 
-        car_to_first_point = path_update[0] - self.input.position_global
+        car_to_first_point = path_update[1] - self.input.position_global
 
         angle_to_first_point = vec_angle_between(
             car_to_first_point, self.input.direction_global
@@ -456,7 +458,7 @@ class CalculatePath:
         path_update = np.row_stack((new_point, path_update))
 
         return path_update
-
+       
     def remove_path_behind_car(self, path_length_fixed: FloatArray) -> FloatArray:
         """
         Remove part of the path that is behind the car.
@@ -464,7 +466,7 @@ class CalculatePath:
         idx_start_mpc_path = int(self.cost_mpc_path_start(path_length_fixed).argmin())
         path_length_fixed_forward: FloatArray = path_length_fixed[idx_start_mpc_path:]
         return path_length_fixed_forward
-
+    
     def remove_path_not_in_prediction_horizon(
         self, path_length_fixed_forward: FloatArray
     ) -> FloatArray:
@@ -512,6 +514,51 @@ class CalculatePath:
         self.mpc_paths = self.mpc_paths[-10:] + [path_with_length_for_mpc]
         self.path_is_trivial_list = self.path_is_trivial_list[-10:] + [path_is_trivial]
 
+    from scipy.interpolate import CubicSpline
+    '''
+    def smooth_transition_to_car(self, path_parameterization: FloatArray) -> FloatArray:
+        """
+        Smoothly transition the calculated path to the car position using cubic spline interpolation.
+        """
+        car_position = self.input.position_global.reshape(1, -1)  # 確保 car_position 是 2D
+
+        # 獲取前 30 個路徑點（如果不足，使用所有點）
+        first_path_point = path_parameterization[10:len(path_parameterization), 1:3] 
+
+        # 合併車輛位置與路徑點
+        transition_points = np.vstack((car_position, first_path_point))
+        print(f"Transition points shape: {transition_points.shape}")
+
+        # 定義曲線擬合的 x 軸
+        x_values = np.linspace(0, 1, len(transition_points))
+
+        # 使用 Cubic Spline 擬合
+        cs = CubicSpline(x_values, transition_points, axis=0)
+        smooth_transition = cs(np.linspace(0, 1, num=1000))  # 增加插值點數
+
+        # 保留其他字段，填充為零
+        transition_with_meta = np.zeros((len(smooth_transition), path_parameterization.shape[1]))
+        transition_with_meta[:, 1:3] = smooth_transition
+
+        # 合併過渡段和剩餘路徑
+        remaining_path = path_parameterization[len(path_parameterization):] 
+        path_parameterization = np.row_stack((transition_with_meta, remaining_path))
+
+        # 對整體路徑進行二次平滑
+        x_all = np.linspace(0, 1, len(path_parameterization))
+        cs_all = CubicSpline(x_all, path_parameterization[:, 1:3], axis=0)
+        smoothed_path = cs_all(np.linspace(0, 1, len(path_parameterization)))
+
+        # 降採樣使平滑後的路徑大小與原始路徑一致
+        #downsampled_path = smoothed_path[::len(smoothed_path) // len(path_parameterization)]
+
+        # 更新平滑後的路徑
+        path_parameterization[:, 1:3] = smoothed_path
+
+        return path_parameterization
+    '''
+
+        
     def run_path_calculation(self) -> Tuple[FloatArray, FloatArray]:
         """Calculate path."""
         if self.input.global_path is not None:
@@ -573,4 +620,8 @@ class CalculatePath:
         self.store_paths(path_update, path_parameterization, False)
         self.previous_paths = self.previous_paths[-10:] + [path_parameterization]
 
+        # 最後插入平滑過渡段
+        #path_parameterization = self.smooth_transition_to_car(path_parameterization)
+
+        
         return path_parameterization, center_along_match_connection

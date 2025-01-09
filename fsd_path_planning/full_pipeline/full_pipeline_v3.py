@@ -421,24 +421,31 @@ start_time = None
 # 儲存先前的 Marker ID 列表
 previous_cone_marker_ids = []
 
-def delete_previous_cone_markers(): #讓舊的點不會卡在畫面上
-    """刪除舊的圓錐 Marker，不影響路徑 Marker。"""
+def delete_previous_cone_markers(current_ids):
+    """刪除舊的圓錐 Marker，僅刪除不再需要的 ID。"""
     global previous_cone_marker_ids
-    marker_array = MarkerArray()  # 創建新的 MarkerArray
+    marker_array = MarkerArray()
 
+    # 找出需要刪除的 Marker ID
     for marker_id in previous_cone_marker_ids:
-        delete_marker = Marker()
-        delete_marker.header.frame_id = "map"
-        delete_marker.id = marker_id
-        delete_marker.action = Marker.DELETE  # 設置為刪除動作
-        marker_array.markers.append(delete_marker)
+        if marker_id not in current_ids:
+            delete_marker = Marker()
+            delete_marker.header.frame_id = "map"
+            delete_marker.id = marker_id
+            delete_marker.action = Marker.DELETE  # 設置為刪除動作
+            marker_array.markers.append(delete_marker)
 
-    marker_pub.publish(marker_array)  # 發佈刪除指令
-    rospy.sleep(0.005)  # 加一點延遲，確保 RViz 有時間處理
-    previous_cone_marker_ids = []  # 清空 ID 列表
+    # 發佈刪除指令
+    marker_pub.publish(marker_array)
 
+    # 更新已顯示的 Marker ID 列表
+    previous_cone_marker_ids = current_ids
+
+
+# 全局變數來控制角錐輸出頻率
+marker_publish_counter = 0  # 計數器
 def yolo_callback(data):
-    global callback_count, start_time
+    global callback_count, start_time,marker_publish_counter
 
     # 初始化計時器
     if start_time is None:
@@ -450,6 +457,8 @@ def yolo_callback(data):
         global vehicle_position
         global vehicle_direction
 
+        current_ids = [marker_id for marker_id in range(len(data.labels))]
+
         '''
          # **打印接收到的相對座標訊息**
         rospy.loginfo("Received relative coordinates:")
@@ -458,7 +467,7 @@ def yolo_callback(data):
         '''
 
         # 刪除之前的圓錐 Marker
-        delete_previous_cone_markers()
+        delete_previous_cone_markers(current_ids)
 
         # 確保方向不為零向量
         if np.linalg.norm(vehicle_direction) == 0:
@@ -476,9 +485,10 @@ def yolo_callback(data):
             cone_type, color = classify_cone(label)
             cones_by_type[cone_type].append(cones_2d_relative[i])
 
-            marker = create_cone_marker(cones_2d_relative[i], i, color)
-            marker_array.markers.append(marker)
-            previous_cone_marker_ids.append(i)  # 儲存 Marker ID
+            if marker_publish_counter % 2 == 0:  # 每 5 次輸出一次角錐
+                marker = create_cone_marker(cones_2d_relative[i], i, color)
+                marker_array.markers.append(marker)
+                previous_cone_marker_ids.append(i)  # 儲存 Marker ID
 
 
         # 更新 cone_sorting_input
@@ -501,12 +511,19 @@ def yolo_callback(data):
             return_intermediate_results=False
         )
 
+         # 路徑可視化
         path_marker = create_path_marker(final_path[:, 1:3])
         marker_array.markers.append(path_marker)
 
         # 發布結果
-        marker_pub.publish(marker_array)
+        if marker_publish_counter % 2 == 0:  # 每 5 次輸出一次角錐
+            marker_pub.publish(marker_array)
         publish_path(final_path)
+
+        # 增加計數器並重置
+        marker_publish_counter += 1
+        if marker_publish_counter >= 1000:  # 避免計數器無限增長
+            marker_publish_counter = 0
 
         # 增加 callback 計數
         callback_count += 1
